@@ -10,15 +10,16 @@ class Elementor_Google_Drive_Plugin_Updater {
     public function __construct( $file, $slug, $version_const ) {
         $this->file    = $file;
         $this->slug    = $slug;
-        $this->version = defined( $version_const ) ? constant( $version_const ) : '1.0.0';
+        $this->version = defined( $version_const ) ? constant( $version_const ) : '1.1.0';
         add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'check_update' ) );
         add_filter( 'plugins_api', array( $this, 'plugin_info' ), 20, 3 );
     }
 
     public function check_update( $transient ) {
         if ( empty( $transient->checked ) ) return $transient;
-        $license_key = get_option( 'ge_' . $this->slug . '_license_key', '' );
-        if ( empty( $license_key ) ) return $transient;
+        $license_key    = get_option( 'ge_' . $this->slug . '_license_key', '' );
+        $license_status = get_option( 'ge_' . $this->slug . '_license_status', 'invalid' );
+        if ( empty( $license_key ) || 'valid' !== $license_status ) return $transient;
 
         $res = wp_remote_get( $this->api_url . 'wp-json/ge-license/v1/check-update', array(
             'timeout' => 15,
@@ -41,7 +42,9 @@ class Elementor_Google_Drive_Plugin_Updater {
     public function plugin_info( $result, $action, $args ) {
         if ( $action !== 'plugin_information' ) return $result;
         if ( ! isset( $args->slug ) || $args->slug !== $this->slug ) return $result;
-        $license_key = get_option( 'ge_' . $this->slug . '_license_key', '' );
+        $license_key    = get_option( 'ge_' . $this->slug . '_license_key', '' );
+        $license_status = get_option( 'ge_' . $this->slug . '_license_status', 'invalid' );
+        if ( empty( $license_key ) || 'valid' !== $license_status ) return $result;
         $res = wp_remote_get( $this->api_url . 'wp-json/ge-license/v1/plugin-info', array(
             'timeout' => 15,
             'body'    => array( 'slug' => $this->slug, 'license_key' => $license_key ),
